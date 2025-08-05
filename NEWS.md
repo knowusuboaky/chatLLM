@@ -6,7 +6,7 @@
   `chat_llm()` now speaks to **Gemini** via Google’s **OpenAI-compatible Chat Completions API** (`…/v1beta/openai/chat/completions`). The default model is `gemini-2.0-flash`, and new helpers (`get_gemini_models()`, `"gemini"` option in `list_models()`) make catalog discovery a one-liner. ([Google AI for Developers][1], [Google Developers Blog][2])
 
 * **xAI Grok Integration**
-  Added first-class support for **Grok** through the endpoint `https://api.x.ai/v1/chat/completions`. The default model is `grok-4-0709`. You also get `get_grok_models()` plus a `"grok"` flag in `list_models()` for painless switching. ([xAI Docs][3], [docs.typingmind.com][4])
+  Added first-class support for **Grok** through the endpoint `https://api.x.ai/v1/chat/completions`. The default model is `grok-3-latest`. You also get `get_grok_models()` plus a `"grok"` flag in `list_models()` for painless switching. ([xAI Docs][3], [docs.typingmind.com][4])
 
 * **Model Catalog Expansion**
   `list_models("all")` now aggregates catalogs from **eight providers**—OpenAI, Groq, Anthropic, DeepSeek, DashScope, GitHub, **Gemini**, and **Grok**—so you can inspect every available model in a single call.
