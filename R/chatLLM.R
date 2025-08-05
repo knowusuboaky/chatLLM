@@ -23,6 +23,8 @@ get_default_model <- function(provider) {
     "deepseek"  = "deepseek-chat",
     "dashscope" = "qwen-plus-latest",
     "github"    = "openai/gpt-4.1",
+    "gemini"    = "gemini-2.0-flash",
+    "grok"      = "grok-3-latest",
     stop("No default model for provider: ", provider)
   )
 }
@@ -39,6 +41,8 @@ get_api_key <- function(provider, api_key = NULL) {
     "deepseek"  = "DEEPSEEK_API_KEY",
     "dashscope" = "DASHSCOPE_API_KEY",
     "github"    = "GH_MODELS_TOKEN",
+    "gemini"    = "GEMINI_API_KEY",
+    "grok"      = "XAI_API_KEY",
     stop("Unknown provider: ", provider)
   )
   if (is.null(api_key)) api_key <- Sys.getenv(env_var)
@@ -60,6 +64,8 @@ parse_response <- function(provider, parsed) {
     "deepseek"  = parsed$choices[[1]]$message$content,
     "dashscope" = parsed$choices[[1]]$message$content,
     "github"    = parsed$choices[[1]]$message$content,
+    "gemini"    = parsed$choices[[1]]$message$content,
+    "grok"      = parsed$choices[[1]]$message$content,
     stop("Parsing not implemented for provider: ", provider)
   )
 }
@@ -70,6 +76,24 @@ parse_response <- function(provider, parsed) {
 get_openai_models <- function(token = Sys.getenv("OPENAI_API_KEY")) {
   if (!nzchar(token)) return(character())
   r <- GET("https://api.openai.com/v1/models",
+           add_headers(Authorization = paste("Bearer", token)),
+           timeout(60))
+  if (http_error(r)) return(character())
+  vapply(content(r, "parsed")$data, `[[`, character(1), "id")
+}
+
+get_grok_models <- function(token = Sys.getenv("XAI_API_KEY")) {
+  if (!nzchar(token)) return(character())
+  r <- GET("https://api.x.ai/v1/models",
+           add_headers(Authorization = paste("Bearer", token)),
+           timeout(60))
+  if (http_error(r)) return(character())
+  vapply(content(r, "parsed")$data, `[[`, character(1), "id")
+}
+
+get_gemini_models <- function(token = Sys.getenv("GEMINI_API_KEY")) {
+  if (!nzchar(token)) return(character())
+  r <- GET("https://generativelanguage.googleapis.com/v1beta/openai/models",
            add_headers(Authorization = paste("Bearer", token)),
            timeout(60))
   if (http_error(r)) return(character())
@@ -193,11 +217,13 @@ get_all_github_models <- function(token       = Sys.getenv("GH_MODELS_TOKEN"),
 NULL
 
 list_models <- function(provider = c("github","openai","groq",
-                                     "anthropic","deepseek","dashscope","all"),
+                                     "anthropic","deepseek","dashscope",
+                                     "gemini","grok","all"),
                         ...) {
   provider <- match.arg(tolower(provider),
                         c("github","openai","groq",
-                          "anthropic","deepseek","dashscope","all"))
+                          "anthropic","deepseek","dashscope",
+                          "gemini","grok","all"))
 
   fetch <- switch(
     provider,
@@ -206,6 +232,8 @@ list_models <- function(provider = c("github","openai","groq",
     "anthropic" = get_anthropic_models,
     "deepseek"  = get_deepseek_models,
     "dashscope" = get_dashscope_models,
+    "gemini"    = get_gemini_models,   # new
+    "grok"      = get_grok_models,     # new
     "github"    = function(...) get_all_github_models(...),
     "all"       = NULL
   )
@@ -217,11 +245,13 @@ list_models <- function(provider = c("github","openai","groq",
     return(mods)
   }
 
-  provs <- c("openai","groq","anthropic","deepseek","dashscope","github")
+  provs <- c("openai","groq","anthropic","deepseek",
+             "dashscope","github","gemini","grok")   # included in “all”
   setNames(lapply(provs, function(p) {
     tryCatch(list_models(p, ...), error = function(e) character())
   }), provs)
 }
+
 
 ###############################################################################
 # 6. Core chat-completion wrapper                                             #
@@ -232,7 +262,7 @@ list_models <- function(provider = c("github","openai","groq",
 #' @name call_llm
 #' @description
 #' A unified wrapper for several "OpenAI - compatible" chat - completion APIs
-#' (OpenAI, Groq, Anthropic, DeepSeek, Alibaba DashScope, GitHub Models).
+#' (OpenAI, Groq, Anthropic, DeepSeek, Alibaba DashScope, GitHub Models, Grok, Gemini).
 #' Accepts either a single `prompt` **or** a full `messages` list, adds the
 #' correct authentication headers, retries on transient failures, and returns
 #' the assistant's text response. You can toggle informational console
@@ -249,7 +279,7 @@ list_models <- function(provider = c("github","openai","groq",
 #' @param prompt   Character. Single user prompt (optional if `messages`).
 #' @param messages List. Full chat history; see *Messages*.
 #' @param provider Character. One of `"openai"`, `"groq"`, `"anthropic"`,
-#'                 `"deepseek"`, `"dashscope"`, or `"github"`.
+#'                 `"deepseek"`, `"dashscope"`,`"grok"`, `"gemini"` or `"github"`.
 #' @param model    Character. Model ID. If `NULL`, uses the provider default.
 #' @param temperature Numeric. Sampling temperature (0 - 2). Default `0.7`.
 #' @param max_tokens  Integer. Max tokens to generate. Default `1000`.
@@ -396,7 +426,8 @@ call_llm <- function(
     prompt        = NULL,
     messages      = NULL,
     provider      = c("openai","groq","anthropic",
-                      "deepseek","dashscope","github"),
+                      "deepseek","dashscope","github",
+                      "gemini","grok"),
     model         = NULL,
     temperature   = 0.7,
     max_tokens    = 1000,
@@ -414,40 +445,41 @@ call_llm <- function(
   ## ------------------------------------------------------------------------- ##
   ## Factory mode: if neither prompt nor messages supplied, return an LLM object
   if (missing(prompt) && missing(messages)) {
-      return(
-        function(prompt   = NULL,
-                 messages = NULL,
-                 ...) {
-          # Re - invoke call_llm() with stored defaults + whatever the user
-          # passes now
-          args_main <- list(prompt = prompt, messages = messages)
-          opts_main <- list(
-            provider              = provider,
-            model                 = model,
-            temperature           = temperature,
-            max_tokens            = max_tokens,
-            api_key               = api_key,
-            n_tries               = n_tries,
-            backoff               = backoff,
-            verbose               = verbose,
-            endpoint_url          = endpoint_url,
-            github_api_version    = github_api_version,
-            anthropic_api_version = anthropic_api_version,
-            .post_func            = .post_func
-          )
-          extra_args <- list(...)
-          all_args   <- c(args_main, opts_main, extra_args)
-          do.call(call_llm, all_args)
-        }
-      )
-    }
+    return(
+      function(prompt   = NULL,
+               messages = NULL,
+               ...) {
+        # Re - invoke call_llm() with stored defaults + whatever the user
+        # passes now
+        args_main <- list(prompt = prompt, messages = messages)
+        opts_main <- list(
+          provider              = provider,
+          model                 = model,
+          temperature           = temperature,
+          max_tokens            = max_tokens,
+          api_key               = api_key,
+          n_tries               = n_tries,
+          backoff               = backoff,
+          verbose               = verbose,
+          endpoint_url          = endpoint_url,
+          github_api_version    = github_api_version,
+          anthropic_api_version = anthropic_api_version,
+          .post_func            = .post_func
+        )
+        extra_args <- list(...)
+        all_args   <- c(args_main, opts_main, extra_args)
+        do.call(call_llm, all_args)
+      }
+    )
+  }
 
   ##
   ## ------------------------------------------------------------------------- ##
 
   provider <- match.arg(tolower(provider),
                         c("openai","groq","anthropic",
-                          "deepseek","dashscope","github"))
+                          "deepseek","dashscope","github",
+                          "gemini","grok"))
   if (is.null(model)) model <- get_default_model(provider)
 
   ## ---------------- assemble messages ----------------------------------- ##
@@ -486,6 +518,10 @@ call_llm <- function(
     "github"    = add_headers(Accept = "application/vnd.github+json",
                               Authorization = paste("Bearer", api_key),
                               `X-GitHub-Api-Version` = github_api_version,
+                              "Content-Type" = "application/json"),
+    "gemini"    = add_headers(Authorization = paste("Bearer", api_key),
+                              "Content-Type" = "application/json"),
+    "grok"      = add_headers(Authorization = paste("Bearer", api_key),
                               "Content-Type" = "application/json")
   )
 
@@ -503,7 +539,9 @@ call_llm <- function(
           sprintf("https://models.github.ai/orgs/%s/inference/chat/completions", org)
         else
           "https://models.github.ai/inference/chat/completions"
-      }
+      },
+      "gemini"    = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+      "grok"      = "https://api.x.ai/v1/chat/completions"
     )
   }
 
@@ -557,8 +595,8 @@ call_llm <- function(
       }
     )
 
-    if (is.null(res)) next          # go to next iteration
-    if (!http_error(res)) break     # success, exit loop
+    if (is.null(res)) next
+    if (!http_error(res)) break
 
     ## ---- HTTP error branch --------------------------------------------- ##
     err_txt    <- content(res, "text", encoding = "UTF-8")

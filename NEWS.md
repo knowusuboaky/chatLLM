@@ -1,3 +1,22 @@
+# chatLLM 0.1.3 (Upcoming Release – August 2025)
+
+## New Features
+
+* **Google Gemini Integration**
+  `chat_llm()` now speaks to **Gemini** via Google’s **OpenAI-compatible Chat Completions API** (`…/v1beta/openai/chat/completions`). The default model is `gemini-2.0-flash`, and new helpers (`get_gemini_models()`, `"gemini"` option in `list_models()`) make catalog discovery a one-liner. ([Google AI for Developers][1], [Google Developers Blog][2])
+
+* **xAI Grok Integration**
+  Added first-class support for **Grok** through the endpoint `https://api.x.ai/v1/chat/completions`. The default model is `grok-4-0709`. You also get `get_grok_models()` plus a `"grok"` flag in `list_models()` for painless switching. ([xAI Docs][3], [docs.typingmind.com][4])
+
+* **Model Catalog Expansion**
+  `list_models("all")` now aggregates catalogs from **eight providers**—OpenAI, Groq, Anthropic, DeepSeek, DashScope, GitHub, **Gemini**, and **Grok**—so you can inspect every available model in a single call.
+
+[1]: https://ai.google.dev/gemini-api/docs/openai?utm_source=chatgpt.com "OpenAI compatibility | Gemini API | Google AI for Developers"
+[2]: https://developers.googleblog.com/en/gemini-is-now-accessible-from-the-openai-library/?utm_source=chatgpt.com "Gemini is now accessible from the OpenAI Library"
+[3]: https://docs.x.ai/docs/api-reference?utm_source=chatgpt.com "REST API Reference"
+[4]: https://docs.typingmind.com/manage-and-connect-ai-models/xai-%28grok-ai%29?utm_source=chatgpt.com "xAI (Grok AI)"
+
+
 # chatLLM 0.1.2 (Upcoming Release – May 2025)
 
 ## New Features

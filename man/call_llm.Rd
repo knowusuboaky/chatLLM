@@ -9,7 +9,7 @@
 \item{messages}{List. Full chat history; see *Messages*.}
 
 \item{provider}{Character. One of `"openai"`, `"groq"`, `"anthropic"`,
-`"deepseek"`, `"dashscope"`, or `"github"`.}
+`"deepseek"`, `"dashscope"`,`"grok"`, `"gemini"` or `"github"`.}
 
 \item{model}{Character. Model ID. If `NULL`, uses the provider default.}
 
@@ -46,7 +46,7 @@ Character scalar: assistant reply text.
 }
 \description{
 A unified wrapper for several "OpenAI - compatible" chat - completion APIs
-(OpenAI, Groq, Anthropic, DeepSeek, Alibaba DashScope, GitHub Models).
+(OpenAI, Groq, Anthropic, DeepSeek, Alibaba DashScope, GitHub Models, Grok, Gemini).
 Accepts either a single `prompt` **or** a full `messages` list, adds the
 correct authentication headers, retries on transient failures, and returns
 the assistant's text response. You can toggle informational console

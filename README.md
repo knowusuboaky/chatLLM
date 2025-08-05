@@ -19,7 +19,7 @@ Commit](https://img.shields.io/github/last-commit/knowusuboaky/chatLLM.svg)](htt
 
 **chatLLM** is an R package providing a single, consistent interface to
 multiple “OpenAI‑compatible” chat APIs (OpenAI, Groq, Anthropic,
-DeepSeek, Alibaba DashScope, and GitHub Models).
+DeepSeek, Alibaba DashScope, Gemini, Grok and GitHub Models).
 
 Key features:
 
@@ -61,7 +61,9 @@ Sys.setenv(
   ANTHROPIC_API_KEY  = "your-anthropic-key",
   DEEPSEEK_API_KEY   = "your-deepseek-key",
   DASHSCOPE_API_KEY  = "your-dashscope-key",
-  GH_MODELS_TOKEN    = "your-github-models-token"
+  GH_MODELS_TOKEN    = "your-github-models-token",
+  GEMINI_API_KEY     = "your-gemini-key",
+  XAI_API_KEY        = "your-grok-key"
 )
 ```
 
