@@ -11,11 +11,6 @@
 * **Model Catalog Expansion**
   `list_models("all")` now aggregates catalogs from **eight providers**—OpenAI, Groq, Anthropic, DeepSeek, DashScope, GitHub, **Gemini**, and **Grok**—so you can inspect every available model in a single call.
 
-[1]: https://ai.google.dev/gemini-api/docs/openai?utm_source=chatgpt.com "OpenAI compatibility | Gemini API | Google AI for Developers"
-[2]: https://developers.googleblog.com/en/gemini-is-now-accessible-from-the-openai-library/?utm_source=chatgpt.com "Gemini is now accessible from the OpenAI Library"
-[3]: https://docs.x.ai/docs/api-reference?utm_source=chatgpt.com "REST API Reference"
-[4]: https://docs.typingmind.com/manage-and-connect-ai-models/xai-%28grok-ai%29?utm_source=chatgpt.com "xAI (Grok AI)"
-
 
 # chatLLM 0.1.2 (Upcoming Release – May 2025)
 
