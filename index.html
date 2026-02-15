@@ -56,7 +56,7 @@
 <div class="section level2">
 <h2 id="overview">Overview<a class="anchor" aria-label="anchor" href="#overview"></a>
 </h2>
-<p><strong>chatLLM</strong> is an R package providing a single, consistent interface to multiple “OpenAI‑compatible” chat APIs (OpenAI, Groq, Anthropic, DeepSeek, Alibaba DashScope, Gemini, Grok and GitHub Models).</p>
+<p><strong>chatLLM</strong> is an R package providing a single, consistent interface to multiple “OpenAI‑compatible” chat APIs (OpenAI, Groq, Anthropic, DeepSeek, Alibaba DashScope, Gemini, Grok, GitHub Models, AWS Bedrock, Azure OpenAI, and Azure AI Foundry).</p>
 <p>Key features:</p>
 <ul>
 <li>🔄 <strong>Uniform API</strong> across providers</li>
@@ -88,14 +88,21 @@
 <p>Set your API keys or tokens once per session:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Sys.setenv.html" class="external-link">Sys.setenv</a></span><span class="op">(</span></span>
-<span>  OPENAI_API_KEY     <span class="op">=</span> <span class="st">"your-openai-key"</span>,</span>
-<span>  GROQ_API_KEY       <span class="op">=</span> <span class="st">"your-groq-key"</span>,</span>
-<span>  ANTHROPIC_API_KEY  <span class="op">=</span> <span class="st">"your-anthropic-key"</span>,</span>
-<span>  DEEPSEEK_API_KEY   <span class="op">=</span> <span class="st">"your-deepseek-key"</span>,</span>
-<span>  DASHSCOPE_API_KEY  <span class="op">=</span> <span class="st">"your-dashscope-key"</span>,</span>
-<span>  GH_MODELS_TOKEN    <span class="op">=</span> <span class="st">"your-github-models-token"</span>,</span>
-<span>  GEMINI_API_KEY     <span class="op">=</span> <span class="st">"your-gemini-key"</span>,</span>
-<span>  XAI_API_KEY        <span class="op">=</span> <span class="st">"your-grok-key"</span></span>
+<span>  OPENAI_API_KEY       <span class="op">=</span> <span class="st">"your-openai-key"</span>,</span>
+<span>  GROQ_API_KEY         <span class="op">=</span> <span class="st">"your-groq-key"</span>,</span>
+<span>  ANTHROPIC_API_KEY    <span class="op">=</span> <span class="st">"your-anthropic-key"</span>,</span>
+<span>  DEEPSEEK_API_KEY     <span class="op">=</span> <span class="st">"your-deepseek-key"</span>,</span>
+<span>  DASHSCOPE_API_KEY    <span class="op">=</span> <span class="st">"your-dashscope-key"</span>,</span>
+<span>  GH_MODELS_TOKEN      <span class="op">=</span> <span class="st">"your-github-models-token"</span>,</span>
+<span>  GEMINI_API_KEY       <span class="op">=</span> <span class="st">"your-gemini-key"</span>,</span>
+<span>  XAI_API_KEY          <span class="op">=</span> <span class="st">"your-grok-key"</span>,</span>
+<span>  AWS_ACCESS_KEY_ID    <span class="op">=</span> <span class="st">"your-aws-access-key"</span>,</span>
+<span>  AWS_SECRET_ACCESS_KEY <span class="op">=</span> <span class="st">"your-aws-secret-key"</span>,</span>
+<span>  AWS_REGION           <span class="op">=</span> <span class="st">"us-east-1"</span>,</span>
+<span>  AZURE_OPENAI_KEY     <span class="op">=</span> <span class="st">"your-azure-openai-key"</span>,</span>
+<span>  AZURE_OPENAI_ENDPOINT <span class="op">=</span> <span class="st">"https://your-resource.openai.azure.com"</span>,</span>
+<span>  AZURE_FOUNDRY_KEY    <span class="op">=</span> <span class="st">"your-azure-foundry-key"</span>,</span>
+<span>  AZURE_FOUNDRY_ENDPOINT <span class="op">=</span> <span class="st">"https://your-foundry-endpoint"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <hr>
 </div>
