@@ -5,13 +5,17 @@
 
 <!-- badges: start -->
 
+[![License:
+MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![R-CMD-check](https://github.com/knowusuboaky/chatLLM/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/knowusuboaky/chatLLM/actions/workflows/R-CMD-check.yaml)
+[![Docs](https://img.shields.io/badge/docs-pkgdown-blue.svg)](https://knowusuboaky.github.io/chatLLM/)
 [![CRAN
 status](https://www.r-pkg.org/badges/version/chatLLM)](https://cran.r-project.org/package=chatLLM)
-[![Codecov](https://codecov.io/gh/knowusuboaky/chatLLM/branch/main/graph/badge.svg)](https://app.codecov.io/gh/knowusuboaky/chatLLM?branch=main)
+[![Total
+Downloads](https://cranlogs.r-pkg.org/badges/grand-total/chatLLM?color=orange)](https://cranlogs.r-pkg.org/badges/grand-total/chatLLM)
 [![Last
 Commit](https://img.shields.io/github/last-commit/knowusuboaky/chatLLM.svg)](https://github.com/knowusuboaky/chatLLM/commits/main)
 [![Issues](https://img.shields.io/github/issues/knowusuboaky/chatLLM.svg)](https://github.com/knowusuboaky/chatLLM/issues)
-[![Downloads](https://cranlogs.r-pkg.org/badges/grand-total/chatLLM?color=orange)](https://cranlogs.r-pkg.org/badges/grand-total/chatLLM)
 
 <!-- badges: end -->
 

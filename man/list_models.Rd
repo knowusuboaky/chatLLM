@@ -6,7 +6,9 @@
 \arguments{
 \item{provider}{Character. One of \code{"github"}, \code{"openai"},
 \code{"groq"}, \code{"anthropic"}, \code{"deepseek"},
-\code{"dashscope"} or \code{"all"}. Case - insensitive.}
+\code{"dashscope"}, \code{"azure_openai"}, \code{"azure_foundry"},
+\code{"bedrock"} or \code{"all"}.
+Case - insensitive.}
 
 \item{...}{Additional arguments passed to the per - provider helper
 (e.g. \code{limit} for Anthropic, or \code{api_version} for GitHub).}
@@ -16,6 +18,12 @@
 
 \item{anthropic_api_version}{Character. Header value for
 \code{anthropic - version} (Anthropic). Default \code{"2023 - 06 - 01"}.}
+
+\item{azure_api_version}{Character. Query version for Azure OpenAI listing.
+Default \code{"2024-02-15-preview"}.}
+
+\item{azure_foundry_api_version}{Character. Query version for Azure AI Foundry
+model listing. Default \code{"2024-05-01-preview"}.}
 }
 \value{
 If \code{provider != "all"}, a character vector of model IDs for that
@@ -35,6 +43,9 @@ Supported providers:
   \item \code{"deepseek"}   -  DeepSeek chat API
   \item \code{"dashscope"}  -  Alibaba DashScope compatible API
   \item \code{"github"}     -  GitHub Models OpenAI - compatible API
+  \item \code{"azure_openai"} - Azure OpenAI deployments/models
+  \item \code{"azure_foundry"} - Azure AI Foundry chat/models endpoints
+  \item \code{"bedrock"}    -  AWS Bedrock (Converse API)
   \item \code{"all"}        -  Fetch catalogs for all of the above
 }
 }

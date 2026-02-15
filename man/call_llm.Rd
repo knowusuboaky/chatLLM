@@ -9,7 +9,8 @@
 \item{messages}{List. Full chat history; see *Messages*.}
 
 \item{provider}{Character. One of `"openai"`, `"groq"`, `"anthropic"`,
-`"deepseek"`, `"dashscope"`,`"grok"`, `"gemini"` or `"github"`.}
+`"deepseek"`, `"dashscope"`,`"grok"`, `"gemini"`, `"github"`,
+`"azure_openai"`, `"azure_foundry"`, or `"bedrock"`.}
 
 \item{model}{Character. Model ID. If `NULL`, uses the provider default.}
 
@@ -36,6 +37,35 @@ Default `"2022 - 11 - 28"`.}
 \item{anthropic_api_version}{Character. Header `anthropic - version`.
 Default `"2023 - 06 - 01"`.}
 
+\item{azure_api_version}{Character. Query param used by Azure OpenAI.
+Default comes from `AZURE_OPENAI_API_VERSION`
+(fallback `"2024-02-15-preview"`).}
+
+\item{azure_endpoint}{Character. Azure OpenAI resource endpoint,
+e.g. `https://my-resource.openai.azure.com`.}
+
+\item{azure_foundry_api_version}{Character. Query param used by Azure AI
+Foundry chat/model endpoints. Default comes
+from `AZURE_FOUNDRY_API_VERSION`
+(fallback `"2024-05-01-preview"`).}
+
+\item{azure_foundry_endpoint}{Character. Azure AI Foundry endpoint base,
+e.g. `https://my-foundry.models.ai.azure.com`.}
+
+\item{azure_foundry_token}{Character. Optional bearer token for Azure AI
+Foundry (`Authorization: Bearer ...`). If set,
+this is used instead of `AZURE_FOUNDRY_API_KEY`.}
+
+\item{aws_region}{Character. AWS region for `provider = "bedrock"`.
+Defaults to `AWS_REGION`, then `AWS_DEFAULT_REGION`,
+then `"us-east-1"`.}
+
+\item{aws_access_key_id}{Character. Optional AWS access key ID override.}
+
+\item{aws_secret_access_key}{Character. Optional AWS secret access key override.}
+
+\item{aws_session_token}{Character. Optional AWS session token override.}
+
 \item{...}{Extra JSON - body fields (e.g. `top_p`, `stop`,
 `presence_penalty`).}
 
@@ -46,7 +76,8 @@ Character scalar: assistant reply text.
 }
 \description{
 A unified wrapper for several "OpenAI - compatible" chat - completion APIs
-(OpenAI, Groq, Anthropic, DeepSeek, Alibaba DashScope, GitHub Models, Grok, Gemini).
+(OpenAI, Groq, Anthropic, DeepSeek, Alibaba DashScope, GitHub Models, Grok, Gemini)
+plus Azure OpenAI, Azure AI Foundry, and AWS Bedrock via the Converse API.
 Accepts either a single `prompt` **or** a full `messages` list, adds the
 correct authentication headers, retries on transient failures, and returns
 the assistant's text response. You can toggle informational console

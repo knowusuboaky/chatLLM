@@ -11,6 +11,8 @@
 library(httr)
 library(jsonlite)
 
+`%||%` <- function(x, y) if (is.null(x)) y else x
+
 ###############################################################################
 # 1. Provider defaults                                                        #
 ###############################################################################
@@ -25,6 +27,38 @@ get_default_model <- function(provider) {
     "github"    = "openai/gpt-4.1",
     "gemini"    = "gemini-2.0-flash",
     "grok"      = "grok-3-latest",
+    "azure_openai" = {
+      deployment <- Sys.getenv("AZURE_OPENAI_DEPLOYMENT")
+      if (!nzchar(deployment)) {
+        stop(
+          "No default deployment for provider: azure_openai. ",
+          "Set AZURE_OPENAI_DEPLOYMENT or pass `model`.",
+          call. = FALSE
+        )
+      }
+      deployment
+    },
+    "azure_foundry" = {
+      model <- Sys.getenv("AZURE_FOUNDRY_MODEL")
+      if (!nzchar(model)) {
+        stop(
+          "No default model for provider: azure_foundry. ",
+          "Set AZURE_FOUNDRY_MODEL or pass `model`.",
+          call. = FALSE
+        )
+      }
+      model
+    },
+    "bedrock"   = {
+      model <- Sys.getenv("AWS_BEDROCK_MODEL")
+      if (!nzchar(model)) {
+        stop(
+          "No default model for provider: bedrock. Set AWS_BEDROCK_MODEL or pass `model`.",
+          call. = FALSE
+        )
+      }
+      model
+    },
     stop("No default model for provider: ", provider)
   )
 }
@@ -43,8 +77,12 @@ get_api_key <- function(provider, api_key = NULL) {
     "github"    = "GH_MODELS_TOKEN",
     "gemini"    = "GEMINI_API_KEY",
     "grok"      = "XAI_API_KEY",
+    "azure_openai" = "AZURE_OPENAI_API_KEY",
+    "azure_foundry" = "AZURE_FOUNDRY_API_KEY",
+    "bedrock"   = "",
     stop("Unknown provider: ", provider)
   )
+  if (!nzchar(env_var)) return("")
   if (is.null(api_key)) api_key <- Sys.getenv(env_var)
   if (!nzchar(api_key))
     stop(sprintf("API key not found for %s.  Set %s or pass `api_key`.",
@@ -66,8 +104,178 @@ parse_response <- function(provider, parsed) {
     "github"    = parsed$choices[[1]]$message$content,
     "gemini"    = parsed$choices[[1]]$message$content,
     "grok"      = parsed$choices[[1]]$message$content,
+    "azure_openai" = parsed$choices[[1]]$message$content,
+    "azure_foundry" = parsed$choices[[1]]$message$content,
+    "bedrock"   = {
+      blocks <- parsed$output$message$content %||% list()
+      if (!length(blocks)) return("")
+      paste(
+        vapply(blocks, function(x) as.character(x$text %||% ""), character(1)),
+        collapse = "\n"
+      )
+    },
     stop("Parsing not implemented for provider: ", provider)
   )
+}
+
+build_aws_sigv4_headers <- function(
+    service,
+    region,
+    verb,
+    action,
+    request_body = "",
+    content_type = "application/json",
+    accept = "application/json",
+    aws_access_key_id = NULL,
+    aws_secret_access_key = NULL,
+    aws_session_token = NULL
+) {
+  if (!requireNamespace("aws.signature", quietly = TRUE)) {
+    stop(
+      "Package 'aws.signature' is required for provider='bedrock'. ",
+      "Install with install.packages('aws.signature').",
+      call. = FALSE
+    )
+  }
+
+  aws_access_key_id <- if (!is.null(aws_access_key_id) && nzchar(aws_access_key_id)) aws_access_key_id else NULL
+  aws_secret_access_key <- if (!is.null(aws_secret_access_key) && nzchar(aws_secret_access_key)) aws_secret_access_key else NULL
+  aws_session_token <- if (!is.null(aws_session_token) && nzchar(aws_session_token)) aws_session_token else NULL
+
+  host <- switch(
+    service,
+    "bedrock" = sprintf("bedrock.%s.amazonaws.com", region),
+    "bedrock-runtime" = sprintf("bedrock-runtime.%s.amazonaws.com", region),
+    stop("Unsupported AWS service for signing: ", service, call. = FALSE)
+  )
+
+  amz_date <- format(Sys.time(), "%Y%m%dT%H%M%SZ", tz = "UTC")
+  canonical_headers <- list(
+    host = host,
+    `x-amz-date` = amz_date,
+    `content-type` = content_type
+  )
+  if (!is.null(accept) && nzchar(accept)) canonical_headers$accept <- accept
+  if (!is.null(aws_session_token)) {
+    canonical_headers$`x-amz-security-token` <- aws_session_token
+  }
+
+  force_creds <- any(vapply(
+    list(aws_access_key_id, aws_secret_access_key, aws_session_token),
+    function(x) !is.null(x) && nzchar(x),
+    logical(1)
+  ))
+
+  sig <- tryCatch(
+    aws.signature::signature_v4_auth(
+      datetime = amz_date,
+      region = region,
+      service = service,
+      verb = verb,
+      action = action,
+      query_args = list(),
+      canonical_headers = canonical_headers,
+      request_body = request_body,
+      signed_body = TRUE,
+      key = aws_access_key_id,
+      secret = aws_secret_access_key,
+      session_token = aws_session_token,
+      force_credentials = force_creds
+    ),
+    error = function(e) {
+      stop(
+        "Unable to sign AWS request for provider='bedrock': ", e$message, "\n",
+        "Set AWS credentials (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, ",
+        "optional AWS_SESSION_TOKEN) and AWS region (AWS_REGION or AWS_DEFAULT_REGION).",
+        call. = FALSE
+      )
+    }
+  )
+
+  headers <- list(
+    Authorization = sig$SignatureHeader,
+    `X-Amz-Date` = amz_date,
+    Host = host,
+    `Content-Type` = content_type
+  )
+  if (!is.null(accept) && nzchar(accept)) headers$Accept <- accept
+  if (!is.null(sig$SessionToken) && nzchar(sig$SessionToken)) {
+    headers$`X-Amz-Security-Token` <- sig$SessionToken
+  }
+
+  list(headers = headers, host = host)
+}
+
+to_bedrock_message <- function(msg) {
+  role <- tolower(as.character(msg$role %||% "user"))
+  if (!(role %in% c("user", "assistant"))) role <- "user"
+
+  content <- msg$content
+  blocks <- list()
+
+  if (is.character(content)) {
+    blocks <- lapply(as.character(content), function(x) list(text = x))
+  } else if (is.list(content) && length(content)) {
+    blocks <- lapply(content, function(block) {
+      if (is.list(block) && !is.null(block$text)) {
+        list(text = as.character(block$text))
+      } else {
+        list(text = as.character(block))
+      }
+    })
+  } else {
+    blocks <- list(list(text = ""))
+  }
+
+  list(role = role, content = blocks)
+}
+
+build_bedrock_request_body <- function(messages, temperature, max_tokens, extra_args = list()) {
+  roles <- vapply(messages, function(m) tolower(as.character(m$role %||% "user")), character(1))
+  system_idx <- which(roles == "system")
+
+  system_blocks <- if (length(system_idx)) {
+    lapply(messages[system_idx], function(m) list(text = as.character(m$content %||% "")))
+  } else {
+    list()
+  }
+
+  chat_messages <- if (length(system_idx)) messages[-system_idx] else messages
+  chat_messages <- lapply(chat_messages, to_bedrock_message)
+  if (!length(chat_messages)) {
+    chat_messages <- list(list(role = "user", content = list(list(text = ""))))
+  }
+
+  inference_config <- list(
+    maxTokens = as.integer(max_tokens),
+    temperature = as.numeric(temperature)
+  )
+
+  if (!is.null(extra_args$top_p)) {
+    inference_config$topP <- as.numeric(extra_args$top_p)
+    extra_args$top_p <- NULL
+  }
+  if (!is.null(extra_args$topP)) {
+    inference_config$topP <- as.numeric(extra_args$topP)
+    extra_args$topP <- NULL
+  }
+  if (!is.null(extra_args$stop)) {
+    inference_config$stopSequences <- as.character(unlist(extra_args$stop, use.names = FALSE))
+    extra_args$stop <- NULL
+  }
+  if (!is.null(extra_args$stopSequences)) {
+    inference_config$stopSequences <- as.character(unlist(extra_args$stopSequences, use.names = FALSE))
+    extra_args$stopSequences <- NULL
+  }
+  if (!is.null(extra_args$inferenceConfig) && is.list(extra_args$inferenceConfig)) {
+    inference_config <- utils::modifyList(inference_config, extra_args$inferenceConfig)
+    extra_args$inferenceConfig <- NULL
+  }
+
+  body <- list(messages = chat_messages, inferenceConfig = inference_config)
+  if (length(system_blocks)) body$system <- system_blocks
+  if (length(extra_args)) body <- c(body, extra_args)
+  body
 }
 
 ###############################################################################
@@ -160,6 +368,164 @@ get_all_github_models <- function(token       = Sys.getenv("GH_MODELS_TOKEN"),
          `[[`, character(1), "id")
 }
 
+get_azure_openai_models <- function(
+    token = Sys.getenv("AZURE_OPENAI_API_KEY"),
+    endpoint = Sys.getenv("AZURE_OPENAI_ENDPOINT"),
+    azure_api_version = Sys.getenv("AZURE_OPENAI_API_VERSION", unset = "2024-02-15-preview"),
+    deployment = Sys.getenv("AZURE_OPENAI_DEPLOYMENT"),
+    .get_func = httr::GET
+) {
+  fallback <- if (nzchar(deployment)) deployment else character()
+  if (!nzchar(token) || !nzchar(endpoint)) return(fallback)
+
+  base <- sub("/+$", "", endpoint)
+  encoded_ver <- utils::URLencode(azure_api_version, reserved = TRUE)
+
+  # Prefer deployment listing since call_llm(model=...) expects deployment names.
+  deploy_url <- sprintf("%s/openai/deployments?api-version=%s", base, encoded_ver)
+  rd <- tryCatch(
+    .get_func(
+      deploy_url,
+      add_headers(`api-key` = token),
+      timeout(60)
+    ),
+    error = function(e) NULL
+  )
+
+  deployment_ids <- character()
+  if (!is.null(rd) && !http_error(rd)) {
+    pd <- content(rd, "parsed")
+    deployment_ids <- vapply(pd$data %||% list(), function(x) as.character(x$id %||% ""), character(1))
+    deployment_ids <- deployment_ids[nzchar(deployment_ids)]
+  }
+
+  if (length(deployment_ids)) return(unique(c(deployment_ids, fallback)))
+
+  # Fallback endpoint for model catalog where deployments endpoint is unavailable.
+  models_url <- sprintf("%s/openai/models?api-version=%s", base, encoded_ver)
+  rm <- tryCatch(
+    .get_func(
+      models_url,
+      add_headers(`api-key` = token),
+      timeout(60)
+    ),
+    error = function(e) NULL
+  )
+
+  model_ids <- character()
+  if (!is.null(rm) && !http_error(rm)) {
+    pm <- content(rm, "parsed")
+    model_ids <- vapply(pm$data %||% list(), function(x) as.character(x$id %||% ""), character(1))
+    model_ids <- model_ids[nzchar(model_ids)]
+  }
+
+  unique(c(model_ids, fallback))
+}
+
+get_azure_foundry_models <- function(
+    token = Sys.getenv("AZURE_FOUNDRY_API_KEY"),
+    endpoint = Sys.getenv("AZURE_FOUNDRY_ENDPOINT"),
+    azure_foundry_api_version = Sys.getenv("AZURE_FOUNDRY_API_VERSION", unset = "2024-05-01-preview"),
+    azure_foundry_token = Sys.getenv("AZURE_FOUNDRY_TOKEN"),
+    model = Sys.getenv("AZURE_FOUNDRY_MODEL"),
+    .get_func = httr::GET
+) {
+  fallback <- if (nzchar(model)) model else character()
+  if (!nzchar(endpoint)) return(fallback)
+
+  has_token <- is.character(azure_foundry_token) && nzchar(azure_foundry_token)
+  has_key <- is.character(token) && nzchar(token)
+  if (!has_token && !has_key) return(fallback)
+
+  base <- sub("/+$", "", endpoint)
+  encoded_ver <- utils::URLencode(azure_foundry_api_version, reserved = TRUE)
+
+  models_base <- if (grepl("/models($|\\?)", base, ignore.case = TRUE)) {
+    base
+  } else {
+    paste0(base, "/models")
+  }
+
+  url <- if (grepl("api-version=", models_base, ignore.case = TRUE)) {
+    models_base
+  } else {
+    paste0(
+      models_base,
+      if (grepl("\\?", models_base)) "&" else "?",
+      "api-version=", encoded_ver
+    )
+  }
+
+  headers <- if (has_token) {
+    add_headers(
+      Authorization = paste("Bearer", azure_foundry_token),
+      "Content-Type" = "application/json"
+    )
+  } else {
+    add_headers(
+      `api-key` = token,
+      "Content-Type" = "application/json"
+    )
+  }
+
+  r <- tryCatch(
+    .get_func(url, headers, timeout(60)),
+    error = function(e) NULL
+  )
+  if (is.null(r) || http_error(r)) return(fallback)
+
+  parsed <- content(r, "parsed")
+  items <- parsed$data %||% parsed$models %||% list()
+  ids <- vapply(items, function(x) {
+    id <- as.character(
+      x$id %||% x$model %||% x$modelId %||% x$name %||% ""
+    )
+    if (length(id) == 0) "" else id[[1]]
+  }, character(1))
+  ids <- ids[nzchar(ids)]
+
+  unique(c(ids, fallback))
+}
+
+get_bedrock_models <- function(
+    region = Sys.getenv("AWS_REGION", unset = Sys.getenv("AWS_DEFAULT_REGION", unset = "us-east-1")),
+    aws_access_key_id = Sys.getenv("AWS_ACCESS_KEY_ID"),
+    aws_secret_access_key = Sys.getenv("AWS_SECRET_ACCESS_KEY"),
+    aws_session_token = Sys.getenv("AWS_SESSION_TOKEN"),
+    .get_func = httr::GET
+) {
+  if (!nzchar(region)) return(character())
+
+  action <- "/foundation-models"
+  signed <- build_aws_sigv4_headers(
+    service = "bedrock",
+    region = region,
+    verb = "GET",
+    action = action,
+    request_body = "",
+    content_type = "application/json",
+    accept = "application/json",
+    aws_access_key_id = aws_access_key_id,
+    aws_secret_access_key = aws_secret_access_key,
+    aws_session_token = aws_session_token
+  )
+
+  r <- tryCatch(
+    .get_func(
+      paste0("https://", signed$host, action),
+      do.call(add_headers, signed$headers),
+      timeout(60)
+    ),
+    error = function(e) NULL
+  )
+
+  if (is.null(r) || http_error(r)) return(character())
+  parsed <- content(r, "parsed")
+  models <- parsed$modelSummaries %||% list()
+  if (!length(models)) return(character())
+  vapply(models, function(x) as.character(x$modelId %||% ""), character(1))
+}
+
 ###############################################################################
 # 5. list_models()                                                            #
 ###############################################################################
@@ -180,18 +546,27 @@ get_all_github_models <- function(token       = Sys.getenv("GH_MODELS_TOKEN"),
 #'   \item \code{"deepseek"}   -  DeepSeek chat API
 #'   \item \code{"dashscope"}  -  Alibaba DashScope compatible API
 #'   \item \code{"github"}     -  GitHub Models OpenAI - compatible API
+#'   \item \code{"azure_openai"} - Azure OpenAI deployments/models
+#'   \item \code{"azure_foundry"} - Azure AI Foundry chat/models endpoints
+#'   \item \code{"bedrock"}    -  AWS Bedrock (Converse API)
 #'   \item \code{"all"}        -  Fetch catalogs for all of the above
 #' }
 #'
 #' @param provider Character. One of \code{"github"}, \code{"openai"},
 #'   \code{"groq"}, \code{"anthropic"}, \code{"deepseek"},
-#'   \code{"dashscope"} or \code{"all"}. Case - insensitive.
+#'   \code{"dashscope"}, \code{"azure_openai"}, \code{"azure_foundry"},
+#'   \code{"bedrock"} or \code{"all"}.
+#'   Case - insensitive.
 #' @param ... Additional arguments passed to the per - provider helper
 #'   (e.g. \code{limit} for Anthropic, or \code{api_version} for GitHub).
 #' @param github_api_version Character. Header value for
 #'   \code{X - GitHub - Api - Version} (GitHub Models). Default \code{"2022 - 11 - 28"}.
 #' @param anthropic_api_version Character. Header value for
 #'   \code{anthropic - version} (Anthropic). Default \code{"2023 - 06 - 01"}.
+#' @param azure_api_version Character. Query version for Azure OpenAI listing.
+#'   Default \code{"2024-02-15-preview"}.
+#' @param azure_foundry_api_version Character. Query version for Azure AI Foundry
+#'   model listing. Default \code{"2024-05-01-preview"}.
 #'
 #' @return
 #' If \code{provider != "all"}, a character vector of model IDs for that
@@ -218,12 +593,12 @@ NULL
 
 list_models <- function(provider = c("github","openai","groq",
                                      "anthropic","deepseek","dashscope",
-                                     "gemini","grok","all"),
+                                     "gemini","grok","azure_openai","azure_foundry","bedrock","all"),
                         ...) {
   provider <- match.arg(tolower(provider),
                         c("github","openai","groq",
                           "anthropic","deepseek","dashscope",
-                          "gemini","grok","all"))
+                          "gemini","grok","azure_openai","azure_foundry","bedrock","all"))
 
   fetch <- switch(
     provider,
@@ -234,6 +609,9 @@ list_models <- function(provider = c("github","openai","groq",
     "dashscope" = get_dashscope_models,
     "gemini"    = get_gemini_models,   # new
     "grok"      = get_grok_models,     # new
+    "azure_openai" = get_azure_openai_models,
+    "azure_foundry" = get_azure_foundry_models,
+    "bedrock"   = get_bedrock_models,
     "github"    = function(...) get_all_github_models(...),
     "all"       = NULL
   )
@@ -246,7 +624,7 @@ list_models <- function(provider = c("github","openai","groq",
   }
 
   provs <- c("openai","groq","anthropic","deepseek",
-             "dashscope","github","gemini","grok")   # included in “all”
+             "dashscope","github","gemini","grok","azure_openai","azure_foundry","bedrock")
   setNames(lapply(provs, function(p) {
     tryCatch(list_models(p, ...), error = function(e) character())
   }), provs)
@@ -262,7 +640,8 @@ list_models <- function(provider = c("github","openai","groq",
 #' @name call_llm
 #' @description
 #' A unified wrapper for several "OpenAI - compatible" chat - completion APIs
-#' (OpenAI, Groq, Anthropic, DeepSeek, Alibaba DashScope, GitHub Models, Grok, Gemini).
+#' (OpenAI, Groq, Anthropic, DeepSeek, Alibaba DashScope, GitHub Models, Grok, Gemini)
+#' plus Azure OpenAI, Azure AI Foundry, and AWS Bedrock via the Converse API.
 #' Accepts either a single `prompt` **or** a full `messages` list, adds the
 #' correct authentication headers, retries on transient failures, and returns
 #' the assistant's text response. You can toggle informational console
@@ -279,7 +658,8 @@ list_models <- function(provider = c("github","openai","groq",
 #' @param prompt   Character. Single user prompt (optional if `messages`).
 #' @param messages List. Full chat history; see *Messages*.
 #' @param provider Character. One of `"openai"`, `"groq"`, `"anthropic"`,
-#'                 `"deepseek"`, `"dashscope"`,`"grok"`, `"gemini"` or `"github"`.
+#'                 `"deepseek"`, `"dashscope"`,`"grok"`, `"gemini"`, `"github"`,
+#'                 `"azure_openai"`, `"azure_foundry"`, or `"bedrock"`.
 #' @param model    Character. Model ID. If `NULL`, uses the provider default.
 #' @param temperature Numeric. Sampling temperature (0 - 2). Default `0.7`.
 #' @param max_tokens  Integer. Max tokens to generate. Default `1000`.
@@ -295,6 +675,26 @@ list_models <- function(provider = c("github","openai","groq",
 #'                           Default `"2022 - 11 - 28"`.
 #' @param anthropic_api_version Character. Header `anthropic - version`.
 #'                             Default `"2023 - 06 - 01"`.
+#' @param azure_api_version Character. Query param used by Azure OpenAI.
+#'                          Default comes from `AZURE_OPENAI_API_VERSION`
+#'                          (fallback `"2024-02-15-preview"`).
+#' @param azure_endpoint Character. Azure OpenAI resource endpoint,
+#'                       e.g. `https://my-resource.openai.azure.com`.
+#' @param azure_foundry_api_version Character. Query param used by Azure AI
+#'                                  Foundry chat/model endpoints. Default comes
+#'                                  from `AZURE_FOUNDRY_API_VERSION`
+#'                                  (fallback `"2024-05-01-preview"`).
+#' @param azure_foundry_endpoint Character. Azure AI Foundry endpoint base,
+#'                               e.g. `https://my-foundry.models.ai.azure.com`.
+#' @param azure_foundry_token Character. Optional bearer token for Azure AI
+#'                            Foundry (`Authorization: Bearer ...`). If set,
+#'                            this is used instead of `AZURE_FOUNDRY_API_KEY`.
+#' @param aws_region Character. AWS region for `provider = "bedrock"`.
+#'                   Defaults to `AWS_REGION`, then `AWS_DEFAULT_REGION`,
+#'                   then `"us-east-1"`.
+#' @param aws_access_key_id Character. Optional AWS access key ID override.
+#' @param aws_secret_access_key Character. Optional AWS secret access key override.
+#' @param aws_session_token Character. Optional AWS session token override.
 #' @param ...         Extra JSON - body fields (e.g. `top_p`, `stop`,
 #'                    `presence_penalty`).
 #' @param .post_func  Internal. HTTP POST function (default `httr::POST`).
@@ -427,7 +827,7 @@ call_llm <- function(
     messages      = NULL,
     provider      = c("openai","groq","anthropic",
                       "deepseek","dashscope","github",
-                      "gemini","grok"),
+                      "gemini","grok","azure_openai","azure_foundry","bedrock"),
     model         = NULL,
     temperature   = 0.7,
     max_tokens    = 1000,
@@ -438,6 +838,15 @@ call_llm <- function(
     endpoint_url  = NULL,
     github_api_version     = "2022-11-28",
     anthropic_api_version  = "2023-06-01",
+    azure_api_version = Sys.getenv("AZURE_OPENAI_API_VERSION", unset = "2024-02-15-preview"),
+    azure_endpoint = Sys.getenv("AZURE_OPENAI_ENDPOINT"),
+    azure_foundry_api_version = Sys.getenv("AZURE_FOUNDRY_API_VERSION", unset = "2024-05-01-preview"),
+    azure_foundry_endpoint = Sys.getenv("AZURE_FOUNDRY_ENDPOINT"),
+    azure_foundry_token = Sys.getenv("AZURE_FOUNDRY_TOKEN"),
+    aws_region = Sys.getenv("AWS_REGION", unset = Sys.getenv("AWS_DEFAULT_REGION", unset = "us-east-1")),
+    aws_access_key_id = Sys.getenv("AWS_ACCESS_KEY_ID"),
+    aws_secret_access_key = Sys.getenv("AWS_SECRET_ACCESS_KEY"),
+    aws_session_token = Sys.getenv("AWS_SESSION_TOKEN"),
     ...,
     .post_func    = httr::POST
 ) {
@@ -464,6 +873,15 @@ call_llm <- function(
           endpoint_url          = endpoint_url,
           github_api_version    = github_api_version,
           anthropic_api_version = anthropic_api_version,
+          azure_api_version     = azure_api_version,
+          azure_endpoint        = azure_endpoint,
+          azure_foundry_api_version = azure_foundry_api_version,
+          azure_foundry_endpoint    = azure_foundry_endpoint,
+          azure_foundry_token       = azure_foundry_token,
+          aws_region            = aws_region,
+          aws_access_key_id     = aws_access_key_id,
+          aws_secret_access_key = aws_secret_access_key,
+          aws_session_token     = aws_session_token,
           .post_func            = .post_func
         )
         extra_args <- list(...)
@@ -479,7 +897,7 @@ call_llm <- function(
   provider <- match.arg(tolower(provider),
                         c("openai","groq","anthropic",
                           "deepseek","dashscope","github",
-                          "gemini","grok"))
+                          "gemini","grok","azure_openai","azure_foundry","bedrock"))
   if (is.null(model)) model <- get_default_model(provider)
 
   ## ---------------- assemble messages ----------------------------------- ##
@@ -493,37 +911,81 @@ call_llm <- function(
   }
 
   ## ---------------- common request pieces ------------------------------- ##
-  api_key <- get_api_key(provider, api_key)
+  req_body <- NULL
+  req_headers <- NULL
+  extra_args <- list(...)
 
-  req_body <- c(
-    list(
-      model       = model,
-      messages    = messages,
+  if (provider == "bedrock") {
+    req_body <- build_bedrock_request_body(
+      messages = messages,
       temperature = temperature,
-      max_tokens  = max_tokens
-    ),
-    list(...)
-  )
+      max_tokens = max_tokens,
+      extra_args = extra_args
+    )
+  } else {
+    api_key <- if (provider == "azure_foundry" &&
+                     is.character(azure_foundry_token) &&
+                     nzchar(azure_foundry_token)) {
+      ""
+    } else {
+      get_api_key(provider, api_key)
+    }
 
-  req_headers <- switch(
-    provider,
-    "openai" = add_headers(Authorization = paste("Bearer", api_key)),
-    "groq"   = add_headers(Authorization = paste("Bearer", api_key),
-                           "Content-Type" = "application/json"),
-    "anthropic" = add_headers(`x-api-key` = api_key,
-                              `anthropic-version` = anthropic_api_version,
-                              "Content-Type" = "application/json"),
-    "deepseek"  = add_headers(Authorization = paste("Bearer", api_key)),
-    "dashscope" = add_headers(Authorization = paste("Bearer", api_key)),
-    "github"    = add_headers(Accept = "application/vnd.github+json",
-                              Authorization = paste("Bearer", api_key),
-                              `X-GitHub-Api-Version` = github_api_version,
-                              "Content-Type" = "application/json"),
-    "gemini"    = add_headers(Authorization = paste("Bearer", api_key),
-                              "Content-Type" = "application/json"),
-    "grok"      = add_headers(Authorization = paste("Bearer", api_key),
-                              "Content-Type" = "application/json")
-  )
+    req_body <- if (provider == "azure_openai") {
+      c(
+        list(
+          messages    = messages,
+          temperature = temperature,
+          max_tokens  = max_tokens
+        ),
+        extra_args
+      )
+    } else {
+      c(
+        list(
+          model       = model,
+          messages    = messages,
+          temperature = temperature,
+          max_tokens  = max_tokens
+        ),
+        extra_args
+      )
+    }
+
+    req_headers <- switch(
+      provider,
+      "openai" = add_headers(Authorization = paste("Bearer", api_key)),
+      "groq"   = add_headers(Authorization = paste("Bearer", api_key),
+                             "Content-Type" = "application/json"),
+      "anthropic" = add_headers(`x-api-key` = api_key,
+                                `anthropic-version` = anthropic_api_version,
+                                "Content-Type" = "application/json"),
+      "deepseek"  = add_headers(Authorization = paste("Bearer", api_key)),
+      "dashscope" = add_headers(Authorization = paste("Bearer", api_key)),
+      "azure_openai" = add_headers(`api-key` = api_key,
+                                   "Content-Type" = "application/json"),
+      "azure_foundry" = if (is.character(azure_foundry_token) &&
+                              nzchar(azure_foundry_token)) {
+        add_headers(
+          Authorization = paste("Bearer", azure_foundry_token),
+          "Content-Type" = "application/json"
+        )
+      } else {
+        add_headers(
+          `api-key` = api_key,
+          "Content-Type" = "application/json"
+        )
+      },
+      "github"    = add_headers(Accept = "application/vnd.github+json",
+                                Authorization = paste("Bearer", api_key),
+                                `X-GitHub-Api-Version` = github_api_version,
+                                "Content-Type" = "application/json"),
+      "gemini"    = add_headers(Authorization = paste("Bearer", api_key),
+                                "Content-Type" = "application/json"),
+      "grok"      = add_headers(Authorization = paste("Bearer", api_key),
+                                "Content-Type" = "application/json")
+    )
+  }
 
   if (is.null(endpoint_url)) {
     endpoint_url <- switch(
@@ -533,6 +995,54 @@ call_llm <- function(
       "anthropic" = "https://api.anthropic.com/v1/messages",
       "deepseek"  = "https://api.deepseek.com/v1/chat/completions",
       "dashscope" = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions",
+      "azure_openai" = {
+        if (!nzchar(azure_endpoint)) {
+          stop(
+            "For provider='azure_openai', set AZURE_OPENAI_ENDPOINT or pass azure_endpoint.",
+            call. = FALSE
+          )
+        }
+        if (!nzchar(model)) {
+          stop(
+            "For provider='azure_openai', provide deployment name via `model` ",
+            "or set AZURE_OPENAI_DEPLOYMENT.",
+            call. = FALSE
+          )
+        }
+        base <- sub("/+$", "", azure_endpoint)
+        encoded_deployment <- utils::URLencode(as.character(model), reserved = TRUE)
+        encoded_version <- utils::URLencode(as.character(azure_api_version), reserved = TRUE)
+        sprintf(
+          "%s/openai/deployments/%s/chat/completions?api-version=%s",
+          base, encoded_deployment, encoded_version
+        )
+      },
+      "azure_foundry" = {
+        if (!nzchar(azure_foundry_endpoint)) {
+          stop(
+            "For provider='azure_foundry', set AZURE_FOUNDRY_ENDPOINT or pass azure_foundry_endpoint.",
+            call. = FALSE
+          )
+        }
+        base <- sub("/+$", "", azure_foundry_endpoint)
+        encoded_version <- utils::URLencode(as.character(azure_foundry_api_version), reserved = TRUE)
+        endpoint_base <- if (grepl("/chat/completions($|\\?)", base, ignore.case = TRUE)) {
+          base
+        } else if (grepl("/models($|/)", base, ignore.case = TRUE)) {
+          paste0(base, "/chat/completions")
+        } else {
+          paste0(base, "/chat/completions")
+        }
+        if (grepl("api-version=", endpoint_base, ignore.case = TRUE)) {
+          endpoint_base
+        } else {
+          paste0(
+            endpoint_base,
+            if (grepl("\\?", endpoint_base)) "&" else "?",
+            "api-version=", encoded_version
+          )
+        }
+      },
       "github"    = {
         org <- Sys.getenv("GH_MODELS_ORG")
         if (nzchar(org))
@@ -541,17 +1051,59 @@ call_llm <- function(
           "https://models.github.ai/inference/chat/completions"
       },
       "gemini"    = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
-      "grok"      = "https://api.x.ai/v1/chat/completions"
+      "grok"      = "https://api.x.ai/v1/chat/completions",
+      "bedrock"   = {
+        if (!nzchar(aws_region)) {
+          stop(
+            "For provider='bedrock', set AWS_REGION/AWS_DEFAULT_REGION or pass aws_region.",
+            call. = FALSE
+          )
+        }
+        encoded_model <- utils::URLencode(as.character(model), reserved = TRUE)
+        sprintf(
+          "https://bedrock-runtime.%s.amazonaws.com/model/%s/converse",
+          aws_region, encoded_model
+        )
+      }
     )
   }
 
   if (verbose) {
     message(sprintf("Calling %s [%s] ... attempts=%d", provider, model, n_tries))
   }
+  credential_hint <- if (provider == "bedrock") {
+    "AWS credentials/region"
+  } else if (provider == "azure_openai") {
+    "AZURE_OPENAI_API_KEY (plus endpoint/deployment)"
+  } else if (provider == "azure_foundry") {
+    "AZURE_FOUNDRY_API_KEY or AZURE_FOUNDRY_TOKEN (plus endpoint)"
+  } else {
+    "*_API_KEY / MODELS_TOKEN"
+  }
 
   ## ---------------- retry loop ------------------------------------------ ##
   res <- NULL
   for (i in seq_len(n_tries)) {
+
+    req_headers <- if (provider == "bedrock") {
+      body_json <- toJSON(req_body, auto_unbox = TRUE, null = "null")
+      action <- paste0("/", sub("^https?://[^/]+/?", "", endpoint_url))
+      signed <- build_aws_sigv4_headers(
+        service = "bedrock-runtime",
+        region = aws_region,
+        verb = "POST",
+        action = action,
+        request_body = body_json,
+        content_type = "application/json",
+        accept = "application/json",
+        aws_access_key_id = aws_access_key_id,
+        aws_secret_access_key = aws_secret_access_key,
+        aws_session_token = aws_session_token
+      )
+      do.call(add_headers, signed$headers)
+    } else {
+      req_headers
+    }
 
     res <- tryCatch(
       .post_func(
@@ -576,8 +1128,8 @@ call_llm <- function(
             paste0(
               'The request to provider "%s" timed out after %d attempt(s).\n\n',
               'Tip: the model may be retired or misspelled.\n',
-              'Run list_models("%s") (after setting the proper *_API_KEY / ',
-              'MODELS_TOKEN) to see current models, e.g.\n',
+              'Run list_models("%s") (after setting the proper %s) to see ',
+              'current models, e.g.\n',
               '    openai_models <- list_models("openai")\n',
               'Then rerun call_llm(..., model = "<new-model>").\n\n',
               'If the issue is network-related you can also:\n',
@@ -586,7 +1138,7 @@ call_llm <- function(
               ' . check your network / VPN.\n\n',
               'Internal message: %s'
             ),
-            provider, n_tries, provider, e$message
+            provider, n_tries, provider, credential_hint, e$message
           ), call. = FALSE)
         }
 
@@ -614,12 +1166,12 @@ call_llm <- function(
       stop(sprintf(
         paste0(
           'The model "%s" is unavailable or de-commissioned for provider "%s".\n',
-          'Tip: run list_models("%s") after setting the proper *_API_KEY / ',
-          'MODELS_TOKEN to see current models, e.g.\n',
+          'Tip: run list_models("%s") after setting the proper %s to see ',
+          'current models, e.g.\n',
           '    openai_models <- list_models("openai")\n',
           'Then rerun call_llm(..., model = "<new-model>").'
         ),
-        model, provider, provider
+        model, provider, provider, credential_hint
       ), call. = FALSE)
     }
 
@@ -630,14 +1182,14 @@ call_llm <- function(
           'Provider "%s" still returned an error after %d attempt(s).\n\n',
           'Raw response from server:\n%s\n\n',
           'Tip: the model may be retired, renamed, or misspelled.\n',
-          '. Run list_models("%s") (after setting the proper *_API_KEY / ',
-          'MODELS_TOKEN) to view currently available models, e.g.\n',
+          '. Run list_models("%s") (after setting the proper %s) to view ',
+          'currently available models, e.g.\n',
           '    openai_models <- list_models("openai")\n',
           '. Or visit the provider\'s dashboard / documentation for the ',
           'latest list.\n\n',
           'Then rerun call_llm(..., model = "<new-model>").'
         ),
-        provider, n_tries, err_txt, provider
+        provider, n_tries, err_txt, provider, credential_hint
       ), call. = FALSE)
     }
 
@@ -662,3 +1214,4 @@ call_llm <- function(
 ###############################################################################
 # End of block                                                                #
 ###############################################################################
+
