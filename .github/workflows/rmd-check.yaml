@@ -46,7 +46,7 @@ jobs:
 
       - name: Ensure README.md is current
         if: ${{ hashFiles('README.Rmd') != '' }}
-        run: git diff --exit-code -- README.md
+        run: git diff --exit-code --ignore-cr-at-eol -- README.md
 
       - name: Render vignette Rmd files
         run: |

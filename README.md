@@ -23,7 +23,8 @@ Commit](https://img.shields.io/github/last-commit/knowusuboaky/chatLLM.svg)](htt
 
 **chatLLM** is an R package providing a single, consistent interface to
 multiple “OpenAI‑compatible” chat APIs (OpenAI, Groq, Anthropic,
-DeepSeek, Alibaba DashScope, Gemini, Grok and GitHub Models).
+DeepSeek, Alibaba DashScope, Gemini, Grok, GitHub Models, AWS Bedrock,
+Azure OpenAI, and Azure AI Foundry).
 
 Key features:
 
@@ -60,14 +61,21 @@ Set your API keys or tokens once per session:
 
 ``` r
 Sys.setenv(
-  OPENAI_API_KEY     = "your-openai-key",
-  GROQ_API_KEY       = "your-groq-key",
-  ANTHROPIC_API_KEY  = "your-anthropic-key",
-  DEEPSEEK_API_KEY   = "your-deepseek-key",
-  DASHSCOPE_API_KEY  = "your-dashscope-key",
-  GH_MODELS_TOKEN    = "your-github-models-token",
-  GEMINI_API_KEY     = "your-gemini-key",
-  XAI_API_KEY        = "your-grok-key"
+  OPENAI_API_KEY       = "your-openai-key",
+  GROQ_API_KEY         = "your-groq-key",
+  ANTHROPIC_API_KEY    = "your-anthropic-key",
+  DEEPSEEK_API_KEY     = "your-deepseek-key",
+  DASHSCOPE_API_KEY    = "your-dashscope-key",
+  GH_MODELS_TOKEN      = "your-github-models-token",
+  GEMINI_API_KEY       = "your-gemini-key",
+  XAI_API_KEY          = "your-grok-key",
+  AWS_ACCESS_KEY_ID    = "your-aws-access-key",
+  AWS_SECRET_ACCESS_KEY = "your-aws-secret-key",
+  AWS_REGION           = "us-east-1",
+  AZURE_OPENAI_KEY     = "your-azure-openai-key",
+  AZURE_OPENAI_ENDPOINT = "https://your-resource.openai.azure.com",
+  AZURE_FOUNDRY_KEY    = "your-azure-foundry-key",
+  AZURE_FOUNDRY_ENDPOINT = "https://your-foundry-endpoint"
 )
 ```
 
