@@ -9,6 +9,9 @@ Supported providers:
 "deepseek"   -  DeepSeek chat API
 "dashscope"  -  Alibaba DashScope compatible API
 "github"     -  GitHub Models OpenAI - compatible API
+"azure_openai" - Azure OpenAI deployments/models
+"azure_foundry" - Azure AI Foundry chat/models endpoints
+"bedrock"    -  AWS Bedrock (Converse API)
 "all"        -  Fetch catalogs for all of the above
 
 '><meta property="og:description" content='Retrieve the catalog of available model IDs for one or all supported
@@ -21,6 +24,9 @@ Supported providers:
 "deepseek"   -  DeepSeek chat API
 "dashscope"  -  Alibaba DashScope compatible API
 "github"     -  GitHub Models OpenAI - compatible API
+"azure_openai" - Azure OpenAI deployments/models
+"azure_foundry" - Azure AI Foundry chat/models endpoints
+"bedrock"    -  AWS Bedrock (Converse API)
 "all"        -  Fetch catalogs for all of the above
 
 '></head><body>
@@ -31,7 +37,7 @@ Supported providers:
 
     <a class="navbar-brand me-2" href="../index.html">chatLLM</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.4</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -67,6 +73,9 @@ avoiding typos or deprecated defaults.</p>
 <li><p><code>"deepseek"</code>   -  DeepSeek chat API</p></li>
 <li><p><code>"dashscope"</code>  -  Alibaba DashScope compatible API</p></li>
 <li><p><code>"github"</code>     -  GitHub Models OpenAI - compatible API</p></li>
+<li><p><code>"azure_openai"</code> - Azure OpenAI deployments/models</p></li>
+<li><p><code>"azure_foundry"</code> - Azure AI Foundry chat/models endpoints</p></li>
+<li><p><code>"bedrock"</code>    -  AWS Bedrock (Converse API)</p></li>
 <li><p><code>"all"</code>        -  Fetch catalogs for all of the above</p></li>
 </ul></div>
 
@@ -78,7 +87,9 @@ avoiding typos or deprecated defaults.</p>
 <dl><dt id="arg-provider">provider<a class="anchor" aria-label="anchor" href="#arg-provider"></a></dt>
 <dd><p>Character. One of <code>"github"</code>, <code>"openai"</code>,
 <code>"groq"</code>, <code>"anthropic"</code>, <code>"deepseek"</code>,
-<code>"dashscope"</code> or <code>"all"</code>. Case - insensitive.</p></dd>
+<code>"dashscope"</code>, <code>"azure_openai"</code>, <code>"azure_foundry"</code>,
+<code>"bedrock"</code> or <code>"all"</code>.
+Case - insensitive.</p></dd>
 
 
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
@@ -94,6 +105,16 @@ avoiding typos or deprecated defaults.</p>
 <dt id="arg-anthropic-api-version">anthropic_api_version<a class="anchor" aria-label="anchor" href="#arg-anthropic-api-version"></a></dt>
 <dd><p>Character. Header value for
 <code>anthropic - version</code> (Anthropic). Default <code>"2023 - 06 - 01"</code>.</p></dd>
+
+
+<dt id="arg-azure-api-version">azure_api_version<a class="anchor" aria-label="anchor" href="#arg-azure-api-version"></a></dt>
+<dd><p>Character. Query version for Azure OpenAI listing.
+Default <code>"2024-02-15-preview"</code>.</p></dd>
+
+
+<dt id="arg-azure-foundry-api-version">azure_foundry_api_version<a class="anchor" aria-label="anchor" href="#arg-azure-foundry-api-version"></a></dt>
+<dd><p>Character. Query version for Azure AI Foundry
+model listing. Default <code>"2024-05-01-preview"</code>.</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -132,7 +153,7 @@ vectors, one per provider.</p>
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.3.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
 </div>
 
     </footer></div>

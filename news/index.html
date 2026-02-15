@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">chatLLM</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.4</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -33,21 +33,36 @@
     </div>
 
     <div class="section level2">
-<h2 class="pkg-version" data-toc-text="0.1.3" id="chatllm-013-upcoming-release--august-2025">chatLLM 0.1.3 (Upcoming Release – August 2025)<a class="anchor" aria-label="anchor" href="#chatllm-013-upcoming-release--august-2025"></a></h2>
+<h2 class="pkg-version" data-toc-text="0.1.4" id="chatllm-014-upcoming-release---february-2026">chatLLM 0.1.4 (Upcoming Release - February 2026)<a class="anchor" aria-label="anchor" href="#chatllm-014-upcoming-release---february-2026"></a></h2>
 <div class="section level3">
-<h3 id="new-features-0-1-3">New Features<a class="anchor" aria-label="anchor" href="#new-features-0-1-3"></a></h3>
-<ul><li><p><strong>Google Gemini Integration</strong> <code>chat_llm()</code> now speaks to <strong>Gemini</strong> via Google’s <strong>OpenAI-compatible Chat Completions API</strong> (<code>…/v1beta/openai/chat/completions</code>). The default model is <code>gemini-2.0-flash</code>, and new helpers (<code>get_gemini_models()</code>, <code>"gemini"</code> option in <code><a href="../reference/list_models.html">list_models()</a></code>) make catalog discovery a one-liner. (<a href="https://ai.google.dev/gemini-api/docs/openai" title="OpenAI compatibility | Gemini API | Google AI for Developers" class="external-link">Google AI for Developers</a>, <a href="https://developers.googleblog.com/en/gemini-is-now-accessible-from-the-openai-library/" title="Gemini is now accessible from the OpenAI Library" class="external-link">Google Developers Blog</a>)</p></li>
-<li><p><strong>xAI Grok Integration</strong> Added first-class support for <strong>Grok</strong> through the endpoint <code>https://api.x.ai/v1/chat/completions</code>. The default model is <code>grok-3-latest</code>. You also get <code>get_grok_models()</code> plus a <code>"grok"</code> flag in <code><a href="../reference/list_models.html">list_models()</a></code> for painless switching. (<a href="https://docs.x.ai/docs/api-reference" title="REST API Reference" class="external-link">xAI Docs</a>, <a href="https://docs.typingmind.com/manage-and-connect-ai-models/xai-%28grok-ai%29" title="xAI (Grok AI)" class="external-link">docs.typingmind.com</a>)</p></li>
-<li><p><strong>Model Catalog Expansion</strong> <code>list_models("all")</code> now aggregates catalogs from <strong>eight providers</strong>—OpenAI, Groq, Anthropic, DeepSeek, DashScope, GitHub, <strong>Gemini</strong>, and <strong>Grok</strong>—so you can inspect every available model in a single call.</p></li>
+<h3 id="new-features-0-1-4">New Features<a class="anchor" aria-label="anchor" href="#new-features-0-1-4"></a></h3>
+<ul><li><p><strong>AWS Bedrock Integration</strong> Added first-class support for <code>provider = "bedrock"</code> using AWS SigV4 request signing and the Bedrock Converse API. New AWS parameters in <code><a href="../reference/call_llm.html">call_llm()</a></code> include <code>aws_region</code>, <code>aws_access_key_id</code>, <code>aws_secret_access_key</code>, and <code>aws_session_token</code>.</p></li>
+<li><p><strong>Azure OpenAI Integration</strong> Added <code>provider = "azure_openai"</code> with deployment-based endpoint routing and <code>api-key</code> authentication. New Azure OpenAI parameters in <code><a href="../reference/call_llm.html">call_llm()</a></code> include <code>azure_endpoint</code> and <code>azure_api_version</code>.</p></li>
+<li><p><strong>Azure AI Foundry Integration</strong> Added <code>provider = "azure_foundry"</code> with support for either <code>api-key</code> or bearer token authentication. New Foundry parameters in <code><a href="../reference/call_llm.html">call_llm()</a></code> include <code>azure_foundry_endpoint</code>, <code>azure_foundry_api_version</code>, and <code>azure_foundry_token</code>.</p></li>
+<li><p><strong>Model Catalog Expansion</strong> <code><a href="../reference/list_models.html">list_models()</a></code> now supports both Azure providers and Bedrock. <code>list_models("all")</code> includes the expanded provider set.</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="improvements-0-1-4">Improvements<a class="anchor" aria-label="anchor" href="#improvements-0-1-4"></a></h3>
+<ul><li><p><strong>Provider-specific guidance</strong> Error messages now provide more precise credential hints for AWS Bedrock, Azure OpenAI, and Azure AI Foundry.</p></li>
+<li><p><strong>Tests and documentation</strong> Added test coverage for Bedrock, Azure OpenAI, and Azure AI Foundry provider paths, and updated generated Rd documentation accordingly.</p></li>
 </ul></div>
 </div>
     <div class="section level2">
-<h2 class="pkg-version" data-toc-text="0.1.2" id="chatllm-012-upcoming-release--may-2025">chatLLM 0.1.2 (Upcoming Release – May 2025)<a class="anchor" aria-label="anchor" href="#chatllm-012-upcoming-release--may-2025"></a></h2><p class="text-muted">CRAN release: 2025-05-20</p>
+<h2 class="pkg-version" data-toc-text="0.1.3" id="chatllm-013-upcoming-release---august-2025">chatLLM 0.1.3 (Upcoming Release - August 2025)<a class="anchor" aria-label="anchor" href="#chatllm-013-upcoming-release---august-2025"></a></h2><p class="text-muted">CRAN release: 2025-08-19</p>
+<div class="section level3">
+<h3 id="new-features-0-1-3">New Features<a class="anchor" aria-label="anchor" href="#new-features-0-1-3"></a></h3>
+<ul><li><p><strong>Google Gemini Integration</strong> <code>chat_llm()</code> now speaks to <strong>Gemini</strong> via Googleâ€™s <strong>OpenAI-compatible Chat Completions API</strong> (<code>â€¦/v1beta/openai/chat/completions</code>). The default model is <code>gemini-2.0-flash</code>, and new helpers (<code>get_gemini_models()</code>, <code>"gemini"</code> option in <code><a href="../reference/list_models.html">list_models()</a></code>) make catalog discovery a one-liner. (<a href="https://ai.google.dev/gemini-api/docs/openai" title="OpenAI compatibility | Gemini API | Google AI for Developers" class="external-link">Google AI for Developers</a>, <a href="https://developers.googleblog.com/en/gemini-is-now-accessible-from-the-openai-library/" title="Gemini is now accessible from the OpenAI Library" class="external-link">Google Developers Blog</a>)</p></li>
+<li><p><strong>xAI Grok Integration</strong> Added first-class support for <strong>Grok</strong> through the endpoint <code>https://api.x.ai/v1/chat/completions</code>. The default model is <code>grok-3-latest</code>. You also get <code>get_grok_models()</code> plus a <code>"grok"</code> flag in <code><a href="../reference/list_models.html">list_models()</a></code> for painless switching. (<a href="https://docs.x.ai/docs/api-reference" title="REST API Reference" class="external-link">xAI Docs</a>, <a href="https://docs.typingmind.com/manage-and-connect-ai-models/xai-%28grok-ai%29" title="xAI (Grok AI)" class="external-link">docs.typingmind.com</a>)</p></li>
+<li><p><strong>Model Catalog Expansion</strong> <code>list_models("all")</code> now aggregates catalogs from <strong>eight providers</strong>â€”OpenAI, Groq, Anthropic, DeepSeek, DashScope, GitHub, <strong>Gemini</strong>, and <strong>Grok</strong>â€”so you can inspect every available model in a single call.</p></li>
+</ul></div>
+</div>
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.1.2" id="chatllm-012-upcoming-release-â-may-2025">chatLLM 0.1.2 (Upcoming Release â€“ May 2025)<a class="anchor" aria-label="anchor" href="#chatllm-012-upcoming-release-%C3%A2-may-2025"></a></h2><p class="text-muted">CRAN release: 2025-05-20</p>
 <div class="section level3">
 <h3 id="new-features-0-1-2">New Features<a class="anchor" aria-label="anchor" href="#new-features-0-1-2"></a></h3>
 <ul><li><p><strong>DeepSeek Integration</strong><br><code>chat_llm()</code> now supports <strong>DeepSeek</strong> as a backend provider. This expands the range of available language models and increases flexibility for users selecting different inference engines.</p></li>
 <li><p><strong>Alibaba DashScope Integration</strong><br>
-You can now use models from <strong>Alibaba Cloud’s Model Studio (DashScope)</strong> via OpenAI-compatible endpoints. This allows users in mainland China and beyond to easily integrate powerful <strong>Qwen-series</strong> models (like <code>qwen-plus</code>, <code>qwen-turbo</code>, and others) using the same <code>chat_llm()</code> interface.</p></li>
+You can now use models from <strong>Alibaba Cloudâ€™s Model Studio (DashScope)</strong> via OpenAI-compatible endpoints. This allows users in mainland China and beyond to easily integrate powerful <strong>Qwen-series</strong> models (like <code>qwen-plus</code>, <code>qwen-turbo</code>, and others) using the same <code>chat_llm()</code> interface.</p></li>
 <li><p><strong>GitHub Copilot-Compatible Model Integration</strong><br>
 You can now use models hosted through <strong>GitHub Copilot-compatible endpoints</strong>. This allows seamless integration with custom-hosted or proxy-accessible models, making it easier to experiment with private or specialized deployments.</p></li>
 <li><p><strong>Model Catalog Access</strong><br><code>chat_llm()</code> now supports listing <strong>all available models across all supported providers</strong>. This makes it easier to discover and compare model options before selecting one for your workflow.</p></li>
@@ -62,7 +77,7 @@ You can now use models hosted through <strong>GitHub Copilot-compatible endpoint
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.3.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
 </div>
 
     </footer></div>
